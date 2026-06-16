@@ -2,11 +2,22 @@ import { Player } from "./player.js";
 import { Enemy } from "./enemy.js";
 import { WaveManager } from "./waves.js";
 import { SaveSystem } from "./save.js";
+import { AbilityManager }
+from "./abilities.js";
+
+import { PowerUp }
+from "./powerups.js";
 
 export class Game{
 
 constructor(){
+this.abilities =
+new AbilityManager(
+    this.player
+);
 
+this.powerUps = [];
+  
 this.canvas =
 document.getElementById("gameCanvas");
 
@@ -77,7 +88,38 @@ this.loop.bind(this)
 }
 
 update(){
+if(
+    Math.random() < 0.002
+){
 
+    const types = [
+
+        "XP",
+        "HEALTH",
+        "ABILITY"
+    ];
+
+    const type =
+
+    types[
+        Math.floor(
+            Math.random() *
+            types.length
+        )
+    ];
+
+    this.powerUps.push(
+
+        new PowerUp(
+
+            Math.random()*900,
+
+            Math.random()*500,
+
+            type
+        )
+    );
+}
 this.player.update(this);
 
 this.enemies.forEach(
@@ -91,9 +133,31 @@ enemy=>enemy.alive
 
 this.updateHUD();
 }
+  this.powerUps.forEach(
+
+    powerup=>
+
+    powerup.update(this)
+
+);
+
+this.powerUps =
+
+this.powerUps.filter(
+
+    p=>p.active
+
+);
 
 draw(){
+this.powerUps.forEach(
 
+    powerup=>
+
+    powerup.draw(this.ctx)
+
+);
+  
 this.ctx.clearRect(
 0,
 0,
@@ -134,38 +198,49 @@ this.save.record;
 
 addScore(points){
 
-this.score += points;
+    this.score += points;
 
-this.xp += points;
+    this.xp += points;
 
-if(this.score >
-this.save.record){
+    if(this.score >
+    this.save.record){
 
-this.save.record =
-this.score;
+        this.save.record =
+        this.score;
 
-this.save.saveRecord();
+        this.save.saveRecord();
+    }
+
+    const requiredXP =
+    100 +
+    ((this.level - 1) * 50);
+
+    if(this.xp >= requiredXP){
+
+        this.level++;
+
+        this.xp = 0;
+
+        this.player.maxHealth += 20;
+
+        this.player.health =
+        this.player.maxHealth;
+
+        alert(
+            "¡Subiste al nivel "
+            + this.level + "!"
+        );
+    }
+
+    if(this.score >= 1000){
+
+        alert("Victoria");
+
+        location.reload();
+    }
 }
 
-if(this.xp >= 100){
 
-this.level++;
-
-this.xp = 0;
-
-this.player.maxHealth += 20;
-
-this.player.health =
-this.player.maxHealth;
-}
-
-if(this.score >= 1000){
-
-alert("Victoria");
-
-location.reload();
-}
-}
 
 gameOver(){
 
