@@ -34,7 +34,16 @@ export class Enemy {
 
             this.direction = -1;
         }
+if(
+    game.keys["c"] ||
+    game.keys["C"]
+){
 
+    if(this.mines.length < 5){
+
+        this.placeMine();
+    }
+}
         player.bullets.forEach(bullet => {
 
             if (
@@ -118,6 +127,54 @@ game.player.damage;
             (this.width * this.health)
             / 100,
             4
-        );
+ctx.fillStyle="cyan";
+
+this.mines.forEach(m=>{
+
+    ctx.beginPath();
+
+    ctx.arc(
+        m.x,
+        m.y,
+        10,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+});
+            
+          game.player.mines.forEach(m=>{
+
+    const dx =
+    this.x - m.x;
+
+    const dy =
+    this.y - m.y;
+
+    const dist =
+    Math.sqrt(
+        dx*dx +
+        dy*dy
+    );
+
+    if(
+        dist <
+        m.radius &&
+        m.active
+    ){
+
+        this.health -= 100;
+
+        m.active = false;
+
+        if(
+            this.health <= 0
+        ){
+
+            this.alive = false;
+
+            game.addScore(25);
+        }
     }
-}
+});
