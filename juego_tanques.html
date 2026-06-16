@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tanques - Diseño Ladrillos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ladrillo: '#92562A',
+                        ladrilloClaro: '#B47448',
+                        ladrilloOscuro: '#704220',
+                        metal: '#B0B0B0',
+                        metalOscuro: '#787878',
+                        fondo: '#000000',
+                        bala: '#FF7D00',
+                        ataque: '#EF4444',
+                        defensa: '#3B82F6',
+                        movilidad: '#22C55E',
+                        estrategia: '#EAB308',
+                        legendaria: '#A855F7',
+                    },
+                    fontFamily: {
+                        game: ['"Press Start 2P"', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .pixel-border {
+                box-shadow: 
+                    0 0 0 2px #111,
+                    0 0 0 4px #fff,
+                    0 0 0 6px #111;
+            }
+            .text-shadow {
+                text-shadow: 2px 2px 0 #000;
+            }
+            .color-option {
+                width: 45px;
+                height: 45px;
+                border: 3px solid #fff;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .color-option:hover, .color-option.selected {
+                transform: scale(1.15);
+                border-color: #FFD700;
+                box-shadow: 0 0 10px #FFD70080;
+            }
+            .icono-habilidad {
+                font-size: 14px;
+                margin-right: 6px;
+            }
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        * {
+            font-family: 'Press Start 2P', monospace;
+            user-select: none;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body class="bg-fondo text-white overflow-hidden flex flex-col items-center justify-center min-h-screen m-0 p-4">
+    <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-4 text-yellow-400 text-shadow">TANQUES: SUPERVIVENCIA</h1>
+    
+    <div class="relative">
+        <canvas id="canvas" width="800" height="500" class="bg-black rounded-lg pixel-border"></canvas>
+        
+        <!-- Pantalla de inicio con selección de color -->
+        <div id="pantallaInicio" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center rounded-lg z-10">
+            <h2 class="text-3xl text-green-400 mb-6 text-shadow">¡BIENVENIDO!</h2>
+            
+            <!-- Selección libre de color -->
+            <div class="mb-8 text-center">
+                <p class="text-sm mb-4">ELIGE EL COLOR DE TU TANQUE</p>
+                <div class="flex gap-5 justify-center">
+                    <div class="color-option selected" data-color="#EF4444" style="background-color:#EF4444;" title="Rojo"></div>
+                    <div class="color-option" data-color="#22C55E" style="background-color:#22C55E;" title="Verde"></div>
+                    <div class="color-option" data-color="#EAB308" style="background-color:#EAB308;" title="Amarillo"></div>
+                    <div class="color-option" data-color="#165DFF" style="background-color:#165DFF;" title="Azul"></div>
+                </div>
+            </div>
+
+            <p class="text-sm mb-3 text-center px-10">← → Mover | ESPACIO Saltar | F Disparar | C Colocar Mina</p>
+            <p class="text-sm mb-6 text-center px-10">Recoge poderes y elimina enemigos</p>
+            <button id="btnIniciar" class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-lg transition-all transform hover:scale-105 pixel-border text-lg">
+                INICIAR JUEGO
+            </button>
+        </div>
+
+        <!-- Pantalla de Game Over -->
+        <div id="pantallaGameOver" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center rounded-lg z-20 hidden">
+            <h2 class="text-4xl text-red-500 mb-6 text-shadow">GAME OVER</h2>
+            <p class="text-xl mb-4">Puntuación: <span id="puntuacionFinal">0</span></p>
+            <p class="text-sm mb-8">¿Podrás superar tu marca?</p>
+            <button id="btnReiniciar" class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-lg transition-all transform hover:scale-105 pixel-border text-lg">
+                VOLVER A JUGAR
+            </button>
+        </div>
+
+        <!-- Información del juego -->
+        <div class="absolute top-4 left-4 flex flex-col gap-2">
+            <div class="bg-black/60 px-4 py-2 rounded-lg">
+                <span class="text-yellow-400">PUNTOS: </span>
+                <span id="puntuacion">0</span>
+            </div>
+            <div class="bg-black/60 px-4 py-2 rounded-lg">
+                <span class="text-green-400">VIDAS: </span>
+                <span id="vidas">3</span>
+            </div>
+            <div class="bg-black/60 px-4 py-2 rounded-lg text-xs">
+                <span class="text-sky-300">MINAS: </span>
+                <span id="minasJugador">0</span>
+            </div>
+        </div>
+
+        <!-- Indicador de habilidades activas -->
+        <div id="habilidadesActivas" class="absolute top-4 right-4 flex flex-col gap-1 text-xs max-w-[180px]"></div>
+    </div>
+
+    <p class="text-xs mt-4 text-gray-400">© 2026 - Diseño Ladrillos</p>
+
+    <script>
+        // Elementos del DOM
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const pantallaInicio = document.getElementById('pantallaInicio');
+        const pantallaGameOver = document.getElementById('pantallaGameOver');
+        const btnIniciar = document.getElementById('btnIniciar');
+        const btnReiniciar = document.getElementById('btnReiniciar');
+        const textoPuntuacion = document.getElementById('puntuacion');
+        const textoVidas = document.getElementById('vidas');
+        const textoMinasJugador = document.getElementById('minasJugador');
+        const textoPuntuacionFinal = document.getElementById('puntuacionFinal');
+        const contenedorHabilidades = document.getElementById('habilidadesActivas');
+        const opcionesColor = document.querySelectorAll('.color-option');
+
+        // Variable para guardar el color elegido
+        let colorElegido = '#EF4444'; // Rojo por defecto
+
+        // Selección de color
+        opcionesColor.forEach(opcion => {
+            opcion.addEventListener('click', () => {
+                opcionesColor.forEach(opt => opt.classList.remove('selected'));
+                opcion.classList.add('selected');
+                colorElegido = opcion.dataset.color;
+            });
+        });
+
+        // Variables del juego
+        let juegoActivo = false;
+        let puntuacion = 0;
+        let vidas = 3;
+        let tiempoUltimoEnemigo = 0;
+        let tiempoUltimoPowerUp = 0;
+        let enemigos = [];
+        let balas = [];
+        let balasEnemigas = [];
+        let bloques = [];
+        let powerUps = [];
+        let minas = [];
+        let efectos = [];
+        let gravedad = 0.4;
+        let ultimaActualizacion = 0;
+        const TAM_BLOQUE = 25;
+
+        // 🟢 TODAS LAS HABILIDADES SOLICITADAS
+        const TIPOS_HABILIDADES = [
+            // ⚔️ ATAQUE
+            {
+                id: 'disparo_perforante',
+                nombre: 'Disparo Perforante',
+                icono: '💥',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 20000,
+                descripcion: 'Atraviesa enemigos y obstáculos. Daño alto. Recarga lenta.',
+                efecto: (entidad) => {
+                    entidad.habilidadDisparoPerforante = true;
+                    entidad.tiempoFinDisparoPerforante = Date.now() + 20000;
+                    entidad.cooldownDisparo *= 1.8;
+                }
+            },
+            {
+                id: 'proyectil_incendiario',
+                nombre: 'Proyectil Incendiario',
+                icono: '🔥',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 25000,
+                descripcion: 'Deja fuego que daña con el tiempo.',
+                efecto: (entidad) => {
+                    entidad.habilidadIncendiario = true;
+                    entidad.tiempoFinIncendiario = Date.now() + 25000;
+                }
+            },
+            {
+                id: 'canion_plasma',
+                nombre: 'Cañón de Plasma',
+                icono: '⚡',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 18000,
+                descripcion: 'Rebota en paredes, menos daño.',
+                efecto: (entidad) => {
+                    entidad.habilidadPlasma = true;
+                    entidad.tiempoFinPlasma = Date.now() + 18000;
+                }
+            },
+            {
+                id: 'misil_guiado',
+                nombre: 'Misil Guiado',
+                icono: '🚀',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 22000,
+                descripcion: 'Sigue al enemigo más cercano.',
+                efecto: (entidad) => {
+                    entidad.habilidadMisilGuiado = true;
+                    entidad.tiempoFinMisilGuiado = Date.now() + 22000;
+                }
+            },
+            {
+                id: 'bombardeo_aereo',
+                nombre: 'Bombardeo Aéreo',
+                icono: '💣',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 0,
+                descripcion: 'Marca zona y caen explosivos.',
+                efecto: (entidad) => {
+                    entidad.activarBombardeo = true;
+                }
+            },
+            {
+                id: 'onda_expansiva',
+                nombre: 'Onda Expansiva',
+                icono: '🌊',
+                categoria: 'ataque',
+                color: '#EF4444',
+                duracion: 0,
+                descripcion: 'Empuja enemigos cercanos.',
+                efecto: (entidad) => {
+                    entidad.activarOndaExpansiva = true;
+                }
+            },
+
+            // 🛡️ DEFENSA
+            {
+                id: 'escudo_energetico',
+                nombre: 'Escudo Energético',
+                icono: '🛡️',
+                categoria: 'defensa',
+                color: '#3B82F6',
+                duracion: 5000,
+                descripcion: 'Absorbe daño 5s, no puedes disparar.',
+                efecto: (entidad) => {
+                    entidad.tieneEscudoEnergetico = true;
+                    entidad.puedeDisparar = false;
+                    entidad.tiempoFinEscudoEnergetico = Date.now() + 5000;
+                }
+            },
+            {
+                id: 'reparacion_automatica',
+                nombre: 'Reparación Automática',
+                icono: '🔄',
+                categoria: 'defensa',
+                color: '#3B82F6',
+                duracion: 15000,
+                descripcion: 'Recupera vida lento, se cancela al daño.',
+                efecto: (entidad) => {
+                    entidad.habilidadReparacion = true;
+                    entidad.tiempoFinReparacion = Date.now() + 15000;
+                }
+            },
+            {
+                id: 'blindaje_reforzado',
+                nombre: 'Blindaje Reforzado',
+                icono: '🧱',
+                categoria: 'defensa',
+                color: '#3B82F6',
+                duracion: 12000,
+                descripcion: 'Recibes 50% menos daño.',
+                efecto: (entidad) => {
+                    entidad.danoRecibidoMultiplicador = 0.5;
+                    entidad.tiempoFinBlindaje = Date.now() + 12000;
+                }
+            },
+            {
+                id: 'campo_reflector',
+                nombre: 'Campo Reflector',
+                icono: '🌀',
+                categoria: 'defensa',
+                color: '#3B82F6',
+                duracion: 8000,
+                descripcion: 'Devuelve proyectiles enemigos.',
+                efecto: (entidad) => {
+                    entidad.habilidadReflector = true;
+                    entidad.tiempoFinReflector = Date.now() + 8000;
+                }
+            },
+
+            // 🚁 MOVILIDAD
+            {
+                id: 'propulsores',
+                nombre: 'Propulsores',
+                icono: '🚁',
+                categoria: 'movilidad',
+                color: '#22C55E',
+                duracion: 10000,
+                descripcion: 'Aumenta velocidad temporal.',
+                efecto: (entidad) => {
+                    entidad.velocidadMovimiento *= 1.6;
+                    entidad.tiempoFinPropulsores = Date.now() + 10000;
+                }
+            },
+            {
+                id: 'turbo_instantaneo',
+                nombre: 'Turbo Instantáneo',
+                icono: '⚡',
+                categoria: 'movilidad',
+                color: '#22C55E',
+                duracion: 0,
+                descripcion: 'Impulso rápido hacia adelante.',
+                efecto: (entidad) => {
+                    entidad.x += entidad.direccion * 80;
+                    if(entidad.x < 0) entidad.x = 0;
+                    if(entidad.x + entidad.ancho > canvas.width) entidad.x = canvas.width - entidad.ancho;
+                }
+            },
+            {
+                id: 'modo_fantasma',
+                nombre: 'Modo Fantasma',
+                icono: '🌫',
+                categoria: 'movilidad',
+                color: '#22C55E',
+                duracion: 7000,
+                descripcion: 'Atraviesa obstáculos.',
+                efecto: (entidad) => {
+                    entidad.esFantasma = true;
+                    entidad.tiempoFinFantasma = Date.now() + 7000;
+                }
+            },
+            {
+                id: 'teletransporte_corto',
+                nombre: 'Teletransporte',
+                icono: '🕳',
+                categoria: 'movilidad',
+                color: '#22C55E',
+                duracion: 0,
+                descripcion: 'Te mueve al instante.',
+                efecto: (entidad) => {
+                    entidad.x = Math.random() * (canvas.width - entidad.ancho);
+                    entidad.y = Math.random() * (canvas.height - entidad.alto - 50);
+                }
+            },
+
+            // 🎯 CONTROL Y ESTRATEGIA
+            {
+                id: 'congelacion',
+                nombre: 'Congelación',
+                icono: '❄',
+                categoria: 'estrategia',
+                color: '#EAB308',
+                duracion: 12000,
+                descripcion: 'Enemigos se mueven más lento.',
+                efecto: (entidad) => {
+                    entidad.activarCongelacion = true;
+                    entidad.tiempoFinCongelacion = Date.now() + 12000;
+                }
+            },
+            {
+                id: 'emp',
+                nombre: 'Pulso EMP',
+                icono: '🧲',
+                categoria: 'estrategia',
+                color: '#EAB308',
+                duracion: 10000,
+                descripcion: 'Desactiva habilidades enemigas.',
+                efecto: (entidad) => {
+                    entidad.activarEMP = true;
+                    entidad.tiempoFinEMP = Date.now() + 10000;
+                }
+            },
+            {
+                id: 'mina_gravedad',
+                nombre: 'Mina de Gravedad',
+                icono: '🌪',
+                categoria: 'estrategia',
+                color: '#EAB308',
+                descripcion: 'Atrae tanques cercanos.',
+                efecto: (entidad) => {
+                    entidad.cantidadMinas = (entidad.cantidadMinas || 0) + 2;
+                    entidad.danoMina = 80;
+                    entidad.tipoMina = 'gravedad';
+                }
+            },
+            {
+                id: 'marcado_objetivo',
+                nombre: 'Marcado Objetivo',
+                icono: '🎯',
+                categoria: 'estrategia',
+                color: '#EAB308',
+                duracion: 15000,
+                descripcion: 'Enemigo recibe más daño.',
+                efecto: (entidad) => {
+                    entidad.habilidadMarcado = true;
+                    entidad.tiempoFinMarcado = Date.now() + 15000;
+                }
+            },
+
+            // ⭐ LEGENDARIAS
+            {
+                id: 'modo_berserker',
+                nombre: 'Modo Berserker',
+                icono: '☢',
+                categoria: 'legendaria',
+                color: '#A855F7',
+                duracion: 12000,
+                descripcion: 'Disparo x2, defensa -50%.',
+                efecto: (entidad) => {
+                    entidad.velocidadDisparo *= 2;
+                    entidad.danoRecibidoMultiplicador = 1.5;
+                    entidad.tiempoFinBerserker = Date.now() + 12000;
+                }
+            },
+            {
+                id: 'tanque_dron',
+                nombre: 'Tanque Dron',
+                icono: '🤖',
+                categoria: 'legendaria',
+                color: '#A855F7',
+                duracion: 20000,
+                descripcion: 'Invoca dron que ataca solo.',
+                efecto: (entidad) => {
+                    entidad.tieneDron = true;
+                    entidad.tiempoFinDron = Date.now() + 20000;
+                }
+            },
+            {
+                id: 'tormenta_misiles',
+                nombre: 'Tormenta de Misiles',
+                icono: '🌩',
+                categoria: 'legendaria',
+                color: '#A855F7',
+                duracion: 0,
+                descripcion: 'Lanza misiles en todas direcciones.',
+                efecto: (entidad) => {
+                    entidad.activarTormenta = true;
+                }
+            },
+            {
+                id: 'ultima_resistencia',
+                nombre: 'Última Resistencia',
+                icono: '💀',
+                categoria: 'legendaria',
+                color: '#A855F7',
+                duracion: 10000,
+                descripcion: 'Poca vida = daño y velocidad x2.',
+                efecto: (entidad) => {
+                    if(entidad.salud < entidad.saludMaxima * 0.3) {
+                        entidad.danoMultiplicador = 2;
+                        entidad.velocidadMovimiento *= 2;
+                        entidad.tiempoFinResistencia = Date.now() + 10000;
+                    }
+                }
+            },
+            {
+                id: 'fortaleza_movil',
+                nombre: 'Fortaleza Móvil',
+                icono: '🏰',
+                categoria: 'legendaria',
+                color: '#A855F7',
+                duracion: 15000,
+                descripcion: 'Muy resistente, muy lento.',
+                efecto: (entidad) => {
+                    entidad.danoRecibidoMultiplicador = 0.2;
+                    entidad.velocidadMovimiento *= 0.4;
+                    entidad.tiempoFinFortaleza = Date.now() + 15000;
+                }
+            }
+        ];
+
+        // Objeto: Tanque del jugador
+        const jugador = {
+            x: 380,
+            y: 440,
+            ancho: 40,
+            alto: 30,
+            velocidadX: 0,
+            velocidadY: 0,
+            velocidadMovimiento: 5,
+            velocidadMovimientoBase: 5,
+            velocidadDisparo: 1,
+            nivelVelocidad: 1,
+            estaEnSuelo: false,
+            direccion: 1,
+            cooldownDisparo: 20,
+            salud: 100,
+            saludMaxima: 100,
+            saludMaximaOriginal: 100,
+            danoMultiplicador: 1,
+            danoRecibidoMultiplicador: 1,
+            puedeDisparar: true,
+            color: '#EF4444'
+        };
+
+        // Controles del teclado
+        const teclas = {
+            izquierda: false,
+            derecha: false,
+            salto: false,
+            disparo: false,
+            colocarMina: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowLeft') teclas.izquierda = true;
+            if(e.key === 'ArrowRight') teclas.derecha = true;
+            if(e.key === ' ' || e.key === 'Spacebar') teclas.salto = true;
+            if(e.key === 'f' || e.key === 'F') teclas.disparo = true;
+            if(e.key === 'c' || e.key === 'C') teclas.colocarMina = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            if(e.key === 'ArrowLeft') teclas.izquierda = false;
+            if(e.key === 'ArrowRight') teclas.derecha = false;
+            if(e.key === ' ' || e.key === 'Spacebar') teclas.salto = false;
+            if(e.key === 'f' || e.key === 'F') teclas.disparo = false;
+            if(e.key === 'c' || e.key === 'C') teclas.colocarMina = false;
+        });
+
+        // Clase para Enemigos
+        class Enemigo {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.ancho = 40;
+                this.alto = 30;
+                this.velocidadX = 2;
+                this.velocidadY = 0;
+                this.velocidadMovimiento = 2;
+                this.velocidadMovimientoBase = 2;
+                this.velocidadDisparo = 1;
+                this.nivelVelocidad = 1;
+                this.direccion = Math.random() > 0.5 ? 1 : -1;
+                this.estaEnSuelo = false;
+                this.salud = 100;
+                this.saludMaxima = 100;
+                this.saludMaximaOriginal = 100;
+                this.danoMultiplicador = 1;
+                this.danoRecibidoMultiplicador = 1;
+                this.puedeDisparar = true;
+                this.cooldownDisparo = 100;
+                this.color = '#F53F3F';
+            }
+
+            actualizar() {
+                this.verificarDuracionHabilidades();
+
+                if(this.estaCongelado) {
+                    this.velocidadMovimiento = this.velocidadMovimientoBase * 0.4;
+                } else {
+                    this.velocidadMovimiento = this.velocidadMovimientoBase;
+                }
+
+                this.x += this.velocidadMovimiento * this.direccion;
+                if(this.x < 0 || this.x + this.ancho > canvas.width) this.direccion *= -1;
+
+                this.velocidadY += gravedad;
+                this.y += this.velocidadY;
+
+                this.estaEnSuelo = false;
+                bloques.forEach(bloque => {
+                    if(!this.esFantasma && this.colision(this, bloque)) {
+                        if(this.velocidadY > 0) {
+                            this.y = bloque.y - this.alto;
+                            this.velocidadY = 0;
+                            this.estaEnSuelo = true;
+                        }
+                    }
+                });
+
+                powerUps.forEach((p, i) => {
+                    if (colision(this, p)) {
+                        TIPOS_HABILIDADES[p.tipo].efecto(this);
+                        powerUps.splice(i, 1);
+                    }
+                });
+
+                this.cooldownDisparo--;
+                if(this.puedeDisparar && this.cooldownDisparo <= 0) {
+                    this.disparar();
+                    this.cooldownDisparo = 80 + Math.random() * 60;
+                }
+            }
+
+            disparar() {
+                let dano = 100 * this.danoMultiplicador;
+                balasEnemigas.push({
+                    x: this.direccion === 1 ? this.x + this.ancho : this.x,
+                    y: this.y + this.alto / 2 - 3,
+                    ancho: 8, alto: 6,
+                    velocidad: 6 * this.direccion,
+                    dano: dano,
+                    color: '#FF4D4F',
+                    perforante: this.habilidadDisparoPerforante || false,
+                    rebota: this.habilidadPlasma || false
+                });
+            }
+
+            verificarDuracionHabilidades() {
+                Object.keys(this).forEach(prop => {
+                    if(prop.startsWith('tiempoFin') && this[prop] < Date.now()) {
+                        const habilidad = prop.replace('tiempoFin', '').toLowerCase();
+                        delete this[`habilidad_${habilidad}`];
+                        delete this[prop];
+                        if(habilidad === 'escudoenergetico') this.puedeDisparar = true;
+                        if(habilidad === 'propulsores') this.velocidadMovimiento = this.velocidadMovimientoBase;
+                        if(habilidad === 'blindaje') this.danoRecibidoMultiplicador = 1;
+                        if(habilidad === 'berserker') { this.velocidadDisparo = 1; this.danoRecibidoMultiplicador = 1; }
+                        if(habilidad === 'fortaleza') { this.danoRecibidoMultiplicador = 1; this.velocidadMovimiento = this.velocidadMovimientoBase; }
+                        if(habilidad === 'fantasma') delete this.esFantasma;
+                    }
+                });
+            }
+
+            colision(entidad, bloque) {
+                return entidad.x < bloque.x + bloque.ancho &&
+                       entidad.x + entidad.ancho > bloque.x &&
+                       entidad.y < bloque.y + bloque.alto &&
+                       entidad.y + entidad.alto > bloque.y;
+            }
+
+            dibujar() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.ancho, this.alto);
+                ctx.fillRect(this.direccion === 1 ? this.x + this.ancho : this.x - 10, this.y + 10, 12, 8);
+                ctx.fillStyle = '#222';
+                ctx.fillRect(this.x, this.y + this.alto - 5, this.ancho, 5);
+                
+                if(this.tieneEscudoEnergetico) {
+                    ctx.strokeStyle = '#3B82F6';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.ancho/2, this.y + this.alto/2, this.ancho/1.5, 0, Math.PI*2);
+                    ctx.stroke();
+                }
+                if(this.esFantasma) {
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillRect(this.x, this.y, this.ancho, this.alto);
+                    ctx.globalAlpha = 1;
+                }
+
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x, this.y - 8, this.ancho, 4);
+                ctx.fillStyle = this.salud > 50 ? '#22C55E' : '#EF4444';
+                ctx.fillRect(this.x, this.y - 8, (this.ancho * this.salud) / this.saludMaxima, 4);
+            }
+        }
+
+        // Clase PowerUp
+        class PowerUp {
+            constructor(x, y, tipo) {
+                this.x = x;
+                this.y = y;
+                this.ancho = 26;
+                this.alto = 26;
+                this.tipo = tipo;
+                this.cayendo = true;
+                this.destello = 0;
+            }
+            actualizar() {
+                this.y += this.cayendo ? 1.2 : 0;
+                bloques.forEach(b => { if (colision(this, b)) this.cayendo = false; });
+                if (this.y + this.alto > canvas.height - 10) this.cayendo = false;
+                this.destello = (this.destello + 0.15) % Math.PI;
+            }
+            dibujar() {
+                const hab = TIPOS_HABILIDADES[this.tipo];
+                ctx.globalAlpha = 0.8 + Math.sin(this.destello) * 0.2;
+                ctx.fillStyle = hab.color;
+                ctx.fillRect(this.x, this.y, this.ancho, this.alto);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(hab.icono, this.x + this.ancho/2, this.y + this.alto/2 + 5);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // 🧱 DISEÑO DE BLOQUES
+        function crearMapaLadrillos() {
+            bloques = [];
+            const b = TAM_BLOQUE;
+
+            // FILA 1 (Arriba)
+            for (let i = 3; i < 10; i++) bloques.push({x:i*b, y:b*1, ancho:b, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*0, y:b*1, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*1, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 2
+            for (let i = 3; i < 10; i++) bloques.push({x:i*b, y:b*2, ancho:b, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*0, y:b*2, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*2, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 3
+            for (let i = 3; i < 10; i++) bloques.push({x:i*b, y:b*3, ancho:b, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*0, y:b*3, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*3, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 4
+            bloques.push({x:b*1, y:b*4, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*11, y:b*4, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 5
+            bloques.push({x:b*1, y:b*5, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*11, y:b*5, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*13, y:b*5, ancho:b, alto:b*2, tipo:'metal'});
+
+            // FILA 6 - CENTRO
+            for (let i = 4; i < 9; i++) bloques.push({x:i*b, y:b*6, ancho:b, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*1, y:b*6, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*11, y:b*6, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 7 - CENTRO
+            for (let i = 4; i < 9; i++) bloques.push({x:i*b, y:b*7, ancho:b, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*1, y:b*7, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*11, y:b*7, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 8 - METAL CENTRAL
+            for (let i = 3; i < 10; i++) bloques.push({x:i*b, y:b*8, ancho:b, alto:b, tipo:'metal'});
+            bloques.push({x:b*0, y:b*8, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*8, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 9 - METAL CENTRAL
+            for (let i = 3; i < 10; i++) bloques.push({x:i*b, y:b*9, ancho:b, alto:b, tipo:'metal'});
+            bloques.push({x:b*0, y:b*9, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*9, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 10
+            bloques.push({x:b*0, y:b*10, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*10, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 11
+            bloques.push({x:b*0, y:b*11, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*11, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 12
+            bloques.push({x:b*0, y:b*12, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*12, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 13
+            bloques.push({x:b*0, y:b*13, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*13, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 14
+            bloques.push({x:b*0, y:b*14, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*12, y:b*14, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // FILA 15
+            bloques.push({x:b*2, y:b*15, ancho:b*2, alto:b, tipo:'ladrillo'});
+            bloques.push({x:b*10, y:b*15, ancho:b*2, alto:b, tipo:'ladrillo'});
+
+            // BASE INFERIOR
+            for (let i = 0; i < 14; i++) bloques.push({x:i*b, y:b*18, ancho:b, alto:b*2, tipo:'ladrillo'});
+            bloques.push({x:b*6, y:b*16, ancho:b*2, alto:b*2, tipo:'metal'});
+        }
+
+        function reiniciarJuego() {
+            jugador.x = 380; jugador.y = 440;
+            jugador.velocidadX = 0; jugador.velocidadY = 0;
+            jugador.direccion = 1; jugador.velocidadMovimiento = 5;
+            jugador.nivelVelocidad = 1; jugador.salud = 100;
+            jugador.saludMaxima = 100; jugador.danoMultiplicador = 1;
+            jugador.danoRecibidoMultiplicador = 1; jugador.puedeDisparar = true;
+            jugador.color = colorElegido;
+            
+            puntuacion = 0; vidas = 3;
+            enemigos = []; balas = []; balasEnemigas = [];
+            powerUps = []; minas = []; efectos = [];
+            tiempoUltimoEnemigo = 0; tiempoUltimoPowerUp = 0;
+            
+            actualizarUI();
+            crearMapaLadrillos();
+            pantallaGameOver.classList.add('hidden');
+            juegoActivo = true;
+        }
+
+        function actualizarUI() {
+            textoPuntuacion.textContent = puntuacion;
+            textoVidas.textContent = vidas;
+            textoMinasJugador.textContent = jugador.cantidadMinas || 0;
+            actualizarIndicadoresHabilidades();
+        }
+
+        function actualizarIndicadoresHabilidades() {
+            contenedorHabilidades.innerHTML = '';
+            TIPOS_HABILIDADES.forEach(habilidad => {
+                const id = habilidad.id;
+                if(jugador[`habilidad_${id}`] || jugador[`tiene${id}`]) {
+                    const div = document.createElement('div');
+                    div.className = 'px-2 py-1 rounded text-[10px] flex items-center';
+                    div.style.backgroundColor = `var(--${habilidad.categoria}, ${habilidad.color})`;
+                    div.innerHTML = `<span class="icono-habilidad">${habilidad.icono}</span> ${habilidad.nombre}`;
+                    contenedorHabilidades.appendChild(div);
+                }
+            });
+        }
+
+        function bucleJuego(timestamp = 0) {
+            const deltaTime = timestamp - ultimaActualizacion;
+            ultimaActualizacion = timestamp;
+
+            if(juegoActivo) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                verificarDuracionHabilidadesJugador();
+
+                // Movimiento jugador
+                jugador.velocidadX = 0;
+                if(teclas.izquierda) { jugador.velocidadX = -jugador.velocidadMovimiento; jugador.direccion = -1; }
+                if(teclas.derecha) { jugador.velocidadX = jugador.velocidadMovimiento; jugador.direccion = 1; }
+
+                if(teclas.salto && jugador.estaEnSuelo) { jugador.velocidadY = -12; teclas.salto = false; }
+
+                jugador.velocidadY += gravedad;
+                jugador.x += jugador.velocidadX;
+                jugador.y += jugador.velocidadY;
+
+                if(jugador.x < 0) jugador.x = 0;
+                if(jugador.x + jugador.ancho > canvas.width) jugador.x = canvas.width - jugador.ancho;
+
+                jugador.estaEnSuelo = false;
+                bloques.forEach(bloque => {
+                    if(!jugador.esFantasma && colision(jugador, bloque)) {
+                        if(jugador.velocidadY > 0 && jugador.y + jugador.alto - jugador.velocidadY <= bloque.y) {
+                            jugador.y = bloque.y - jugador.alto;
+                            jugador.velocidadY = 0;
+                            jugador.estaEnSuelo = true;
+                        }
+                        else if(jugador.velocidadY < 0 && jugador.y >= bloque.y + bloque.alto) {
+                            jugador.y = bloque.y + bloque.alto;
+                            jugador.velocidadY = 0;
+                        }
+                    }
+                });
+
+                // Recoger habilidades
+                powerUps.forEach((p, i) => {
+                    if (colision(jugador, p)) {
+                        TIPOS_HABILIDADES[p.tipo].efecto(jugador);
+                        powerUps.splice(i, 1);
+                        actualizarUI();
+                    }
+                });
+
+                // Disparo
+                if(teclas.disparo && jugador.cooldownDisparo <= 0 && jugador.puedeDisparar) { 
+                    dispararJugador(); 
+                    teclas.disparo = false; 
+                }
+                jugador.cooldownDisparo--;
+
+                // Generar habilidades aleatorias
+                tiempoUltimoPowerUp++;
+                if(tiempoUltimoPowerUp > 150 && powerUps.length < 4) {
+                    const tipoAleatorio = Math.floor(Math.random() * TIPOS_HABILIDADES.length);
+                    powerUps.push(new PowerUp(Math.random() * (canvas.width - 40), 0, tipoAleatorio));
+                    tiempoUltimoPowerUp = 0;
+                }
+
+                // Generar enemigos
+                tiempoUltimoEnemigo++;
+                if(tiempoUltimoEnemigo > 120 && enemigos.length < 4) {
+                    const posiciones = [50, 700, 150, 600];
+                    enemigos.push(new Enemigo(posiciones[enemigos.length], 50));
+                    tiempoUltimoEnemigo = 0;
+                }
+
+                // Actualizar enemigos
+                enemigos.forEach((enemigo, indice) => {
+                    enemigo.actualizar();
+                    
+                    if(colision(jugador, enemigo)) {
+                        if (!jugador.tieneEscudoEnergetico) {
+                            vidas -= jugador.danoRecibidoMultiplicador;
+                            jugador.salud -= 20 * jugador.danoRecibidoMultiplicador;
+                        }
+                        enemigos.splice(indice, 1);
+                        actualizarUI();
+                        if(vidas <= 0 || jugador.salud <= 0) finDelJuego();
+                    }
+
+                    balas.forEach((b, ib) => {
+                        if(colision(b, enemigo)) {
+                            enemigo.salud -= b.dano * enemigo.danoRecibidoMultiplicador;
+                            if(!b.perforante) balas.splice(ib, 1);
+                            if(enemigo.salud <= 0) { 
+                                enemigos.splice(indice, 1); 
+                                puntuacion += 100; 
+                                actualizarUI(); 
+                            }
+                        }
+                    });
+                });
+
+                // Actualizar balas
+                balas.forEach((b, i) => { 
+                    b.x += b.velocidad; 
+                    if(b.rebota && (b.x < 0 || b.x > canvas.width)) b.velocidad *= -1;
+                    if(b.x < -50 || b.x > canvas.width + 50) balas.splice(i,1); 
+                });
+                balasEnemigas.forEach((b, i) => {
+                    b.x += b.velocidad;
+                    if(colision(b, jugador)) { 
+                        if (!jugador.tieneEscudoEnergetico) {
+                            vidas -= jugador.danoRecibidoMultiplicador;
+                            jugador.salud -= b.dano * jugador.danoRecibidoMultiplicador;
+                        }
+                        balasEnemigas.splice(i,1); 
+                        actualizarUI(); 
+                        if(vidas <= 0 || jugador.salud <= 0) finDelJuego(); 
+                    }
+                    if(b.x < -50 || b.x > canvas.width + 50) balasEnemigas.splice(i,1);
+                });
+
+                // Actualizar objetos
+                powerUps.forEach(p => p.actualizar());
+
+                // 🎨 DIBUJAR MAPA
+                bloques.forEach(b => {
+                    if(b.tipo === 'ladrillo') {
+                        ctx.fillStyle = '#92562A';
+                        ctx.fillRect(b.x, b.y, b.ancho, b.alto);
+                        ctx.fillStyle = '#B47448';
+                        ctx.fillRect(b.x+1, b.y+1, b.ancho-2, b.alto-2);
+                        ctx.fillStyle = '#704220';
+                        ctx.fillRect(b.x+3, b.y+3, b.ancho-6, b.alto-6);
+                    }
+                    if(b.tipo === 'metal') {
+                        ctx.fillStyle = '#787878';
+                        ctx.fillRect(b.x, b.y, b.ancho, b.alto);
+                        ctx.fillStyle = '#B0B0B0';
+                        ctx.fillRect(b.x+1, b.y+1, b.ancho-2, b.alto-2);
+                    }
+                });
+
+                // Dibujar elementos
+                powerUps.forEach(p => p.dibujar());
+                minas.forEach(m => { ctx.fillStyle = '#444'; ctx.fillRect(m.x, m.y, m.ancho, m.alto); });
+
+                // Jugador
+                ctx.globalAlpha = jugador.esFantasma ? 0.6 : 1;
+                ctx.fillStyle = jugador.color;
+                ctx.fillRect(jugador.x, jugador.y, jugador.ancho, jugador.alto);
+                ctx.fillRect(jugador.direccion===1?jugador.x+jugador.ancho:jugador.x-10, jugador.y+10, 12, 8);
+                ctx.fillStyle = '#222';
+                ctx.fillRect(jugador.x, jugador.y+jugador.alto-5, jugador.ancho, 5);
+                ctx.globalAlpha = 1;
+
+                if(jugador.tieneEscudoEnergetico) { 
+                    ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 2; 
+                    ctx.beginPath(); ctx.arc(jugador.x+jugador.ancho/2, jugador.y+jugador.alto/2,
