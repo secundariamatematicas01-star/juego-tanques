@@ -147,6 +147,15 @@ this.droneCooldown = 0;
             (this.width * this.health)
             / this.maxHealth,
             5
-        );
-    }
+            placeMine(){
+
+    this.mines.push({
+
+        x:this.x,
+        y:this.y,
+
+        radius:50,
+
+        active:true
+    });
 }
