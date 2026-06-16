@@ -18,6 +18,13 @@ export class Player {
         this.bullets = [];
 
         this.shootCooldown = 0;
+        this.damage = 50;
+
+this.fireRate = 20;
+
+this.mines = [];
+
+this.droneCooldown = 0;
     }
 
     update(game) {
