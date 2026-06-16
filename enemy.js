@@ -46,7 +46,8 @@ export class Enemy {
 
                 bullet.active = false;
 
-                this.health -= 50;
+                this.health -=
+game.player.damage;
 
                 if (this.health <= 0) {
 
