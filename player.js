@@ -17,7 +17,8 @@ export class Player {
 
         this.bullets = [];
 
-        this.shootCooldown = 0;
+        this.shootCooldown =
+this.fireRate;
         this.damage = 50;
 
 this.fireRate = 20;
